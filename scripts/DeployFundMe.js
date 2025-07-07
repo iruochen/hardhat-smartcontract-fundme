@@ -2,7 +2,7 @@
 // create main function
 // execute main function
 
-const { ethers } = require("hardhat");
+const { ethers } = require("hardhat")
 
 async function main() {
     // create factory
