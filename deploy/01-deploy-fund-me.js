@@ -16,12 +16,14 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     const { firstAccount } = await getNamedAccounts()
     const { deploy } = deployments
 
-    let dataFeedAddr
+    let dataFeedAddr, confirmations
     if (DEVELOPMENT_CHAINS.includes(network.name)) {
         const mockV3Aggregator = await deployments.get("MockV3Aggregator")
         dataFeedAddr = mockV3Aggregator.address;
+        confirmations = 0
     } else {
         dataFeedAddr = NETWORK_CONFIG[network.config.chainId].ETH_USD_DATA_FEED
+        confirmations = CONFIRMATIONS
     }
 
     const fundMe = await deploy("FundMe", {
@@ -29,7 +31,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         args: [LOCK_TIME, dataFeedAddr],
         log: true,
         // wait for block
-        waitConfirmations: CONFIRMATIONS
+        waitConfirmations: confirmations
     })
     // remove deployment directory or add --reset flag if you redeploy contract
 

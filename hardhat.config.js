@@ -1,6 +1,8 @@
 require("@nomicfoundation/hardhat-toolbox")
 require("@chainlink/env-enc").config()
 require("hardhat-deploy")
+require("@nomicfoundation/hardhat-ethers")
+require("hardhat-deploy-ethers")
 require("./tasks")
 
 const SEPOLIA_URL = process.env.SEPOLIA_URL
