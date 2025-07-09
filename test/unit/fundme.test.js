@@ -1,4 +1,4 @@
-const { ethers, deployments, getNamedAccounts } = require("hardhat")
+const { ethers, deployments, getNamedAccounts, network } = require("hardhat")
 const { assert, expect } = require("chai")
 const helpers = require("@nomicfoundation/hardhat-network-helpers")
 const { DEVELOPMENT_CHAINS } = require("../../helper-hardhat-config")
@@ -9,8 +9,11 @@ const { DEVELOPMENT_CHAINS } = require("../../helper-hardhat-config")
         let fundMe,
             firstAccount,
             mockV3Aggregator,
-            fundMeSecondAccount
+            fundMeSecondAccount,
+            snapshotId
+
         beforeEach(async () => {
+            snapshotId = await network.provider.send("evm_snapshot")
             await deployments.fixture(["all"])
             firstAccount = (await getNamedAccounts()).firstAccount
             secondAccount = (await getNamedAccounts()).secondAccount
@@ -18,6 +21,10 @@ const { DEVELOPMENT_CHAINS } = require("../../helper-hardhat-config")
             mockV3Aggregator = await deployments.get('MockV3Aggregator')
             fundMe = await ethers.getContractAt('FundMe', fundMeDeployment.address)
             fundMeSecondAccount = await ethers.getContract('FundMe', secondAccount)
+        })
+
+        afterEach(async () => {
+            await network.provider.send("evm_revert", [snapshotId])
         })
 
         it("test if the owner is msg.sender", async () => {
