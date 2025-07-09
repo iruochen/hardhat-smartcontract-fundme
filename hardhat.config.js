@@ -15,6 +15,10 @@ module.exports = {
   // in-process, default configuration
   // defaultNetwork: "hardhat",
   solidity: "0.8.24",
+  mocha: {
+    // 200s
+    timeout: 300000
+  },
   networks: {
     sepolia: {
       // alchemy app url
