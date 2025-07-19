@@ -1,9 +1,9 @@
-require("@nomicfoundation/hardhat-toolbox")
-require("@chainlink/env-enc").config()
-require("hardhat-deploy")
-require("@nomicfoundation/hardhat-ethers")
-require("hardhat-deploy-ethers")
-require("./tasks")
+require('@nomicfoundation/hardhat-toolbox')
+require('@chainlink/env-enc').config()
+require('hardhat-deploy')
+require('@nomicfoundation/hardhat-ethers')
+require('hardhat-deploy-ethers')
+require('./tasks')
 
 const SEPOLIA_URL = process.env.SEPOLIA_URL
 const PRIVATE_KEY = process.env.PRIVATE_KEY
@@ -14,10 +14,10 @@ const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
 module.exports = {
   // in-process, default configuration
   // defaultNetwork: "hardhat",
-  solidity: "0.8.24",
+  solidity: '0.8.24',
   mocha: {
     // 200s
-    timeout: 300000
+    timeout: 300000,
   },
   networks: {
     sepolia: {
@@ -26,25 +26,25 @@ module.exports = {
       // metamask private key
       accounts: [PRIVATE_KEY, PRIVATE_KEY_1],
       // chainlist.org
-      chainId: 11155111
-    }
+      chainId: 11155111,
+    },
   },
   etherscan: {
     apiKey: {
       // for verify
-      sepolia: ETHERSCAN_API_KEY
-    }
+      sepolia: ETHERSCAN_API_KEY,
+    },
   },
   namedAccounts: {
     firstAccount: {
-      default: 0
+      default: 0,
     },
     secondAccount: {
-      default: 1
-    }
+      default: 1,
+    },
   },
   gasReporter: {
     // whether to display gas reporter
-    enabled: false
-  }
-};
+    enabled: false,
+  },
+}
