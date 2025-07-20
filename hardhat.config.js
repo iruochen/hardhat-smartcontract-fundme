@@ -15,7 +15,15 @@ const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY
 module.exports = {
 	// in-process, default configuration
 	// defaultNetwork: "hardhat",
-	solidity: '0.8.24',
+	// solidity: '0.8.24',
+	solidity: {
+		// you can add multiple version
+		compilers: [
+			{
+				version: '0.8.24',
+			},
+		],
+	},
 	mocha: {
 		// 200s
 		timeout: 300000,
