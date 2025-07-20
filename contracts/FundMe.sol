@@ -2,8 +2,11 @@
 pragma solidity ^0.8.20;
 
 import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol';
+import './PriceConverter.sol';
 
 contract FundMe {
+  using PriceConverter for uint256;
+
   // 记录投资人
   mapping(address => uint256) public funder2Amount;
 
@@ -41,7 +44,7 @@ contract FundMe {
   // 收款函数
   function fund() external payable {
     // 设置最小交易量
-    require(convertEth2Usd(msg.value) >= MINIMUM_VALUE, 'Send more ETH');
+    require(msg.value.getConversionRate(dataFeed) >= MINIMUM_VALUE,  'Send more ETH');
     // 窗口期限制
     require(
       block.timestamp < deploymentTimestamp + lockTime,
@@ -51,31 +54,11 @@ contract FundMe {
   }
 
   /**
-   * Returns the latest answer.
-   */
-  function getChainlinkDataFeedLatestAnswer() public view returns (int) {
-    // prettier-ignore
-    (
-            /* uint80 roundId */,
-            int256 answer,
-            /*uint256 startedAt*/,
-            /*uint256 updatedAt*/,
-            /*uint80 answeredInRound*/
-        ) = dataFeed.latestRoundData();
-    return answer;
-  }
-
-  function convertEth2Usd(uint256 ethAmount) internal view returns (uint256) {
-    uint256 ethPrice = uint256(getChainlinkDataFeedLatestAnswer());
-    return (ethAmount * ethPrice) / (10 ** 8);
-  }
-
-  /**
    * 提取投资金额
    */
   function getFund() external windowClosed onlyOwner {
     require(
-      convertEth2Usd(address(this).balance) >= TARGET,
+      address(this).balance.getConversionRate(dataFeed) >= TARGET,
       'Target is not reached'
     );
     // transfer: transfer ETH and revert if tx failed
@@ -108,7 +91,7 @@ contract FundMe {
    */
   function refund() external windowClosed {
     require(
-      convertEth2Usd(address(this).balance) < TARGET,
+      address(this).balance.getConversionRate(dataFeed) < TARGET,
       'Target is reached'
     );
     require(funder2Amount[msg.sender] != 0, 'There is no fund for you');
