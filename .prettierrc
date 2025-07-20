@@ -2,6 +2,6 @@
     "plugins": ["prettier-plugin-solidity"],
     "tabWidth": 2,
     "semi": false,
-    "useTabs": false,
+    "useTabs": true,
     "singleQuote": true
 }
