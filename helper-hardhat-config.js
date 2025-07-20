@@ -1,6 +1,6 @@
 const DECIMAL = 8
 const INITIAL_ANSWER = 3000 * 10 ** 8
-const DEVELOPMENT_CHAINS = ['hardhat', 'local']
+const DEVELOPMENT_CHAINS = ['hardhat', 'local', 'localhost']
 const LOCK_TIME = 180
 const CONFIRMATIONS = 5
 
