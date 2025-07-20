@@ -37,66 +37,56 @@ const { DEVELOPMENT_CHAINS } = require('../../helper-hardhat-config')
         assert.equal(await fundMe.dataFeed(), mockV3Aggregator.address)
       })
 
-      // fund, getFund, reFund
-      // unit test for fund
-      // window open, value greater than minimum value, funder balance
       it('window closed, value is greater than minimum value, fund failed', async () => {
-        // make sure the window is closed
         await helpers.time.increase(200)
         await helpers.mine()
-        // value is greater than minimum value
-        expect(
+        await expect(
           fundMe.fund({ value: ethers.parseEther('0.1') }),
-        ).to.be.revertedWith('Window is closed')
+        ).to.be.revertedWithCustomError(fundMe, 'FundMe__WindowClosed')
       })
 
-      it('window open, value is lesst than minimum, fund failed', async () => {
-        expect(
+      it('window open, value is less than minimum, fund failed', async () => {
+        await expect(
           fundMe.fund({ value: ethers.parseEther('0.01') }),
-        ).to.be.revertedWith('Send more ETH')
+        ).to.be.revertedWithCustomError(fundMe, 'FundMe__SendMoreETH')
       })
 
       it('window open, value is greater than minimum, fund success', async () => {
-        // greater than minimum
         await fundMe.fund({ value: ethers.parseEther('0.1') })
         const balance = await fundMe.funder2Amount(firstAccount)
         expect(balance).to.equal(ethers.parseEther('0.1'))
       })
 
-      // unit for getFund
-      // onlyOwner, windowClose, target reached
-      it('not onwer, window closed, target reached, getFund failed', async () => {
-        // make sure the target is reached
+      it('not owner, window closed, target reached, getFund failed', async () => {
         await fundMe.fund({ value: ethers.parseEther('1') })
-        // make sure the window is closed
         await helpers.time.increase(200)
         await helpers.mine()
-        await expect(fundMeSecondAccount.getFund()).to.be.revertedWith(
-          'This function can only be called by owner',
+        await expect(fundMeSecondAccount.getFund()).to.be.revertedWithCustomError(
+          fundMe,
+          'FundMe__NotOwner',
         )
       })
 
       it('window open, target reached, getFund failed', async () => {
-        // make sure the target is reached
         await fundMe.fund({ value: ethers.parseEther('1') })
-        await expect(fundMe.getFund()).to.be.revertedWith(
-          'Window is not closed',
+        await expect(fundMe.getFund()).to.be.revertedWithCustomError(
+          fundMe,
+          'FundMe__WindowNotClosed',
         )
       })
 
       it('window closed, target not reached, getFund failed', async () => {
         await fundMe.fund({ value: ethers.parseEther('0.1') })
-        // make sure the window is closed
         await helpers.time.increase(200)
         await helpers.mine()
-        await expect(fundMe.getFund()).to.be.revertedWith(
-          'Target is not reached',
+        await expect(fundMe.getFund()).to.be.revertedWithCustomError(
+          fundMe,
+          'FundMe__TargetNotReached',
         )
       })
 
       it('window closed, target reached, getFund success', async () => {
         await fundMe.fund({ value: ethers.parseEther('1') })
-        // make sure the window is closed
         await helpers.time.increase(200)
         await helpers.mine()
         await expect(fundMe.getFund())
@@ -104,34 +94,36 @@ const { DEVELOPMENT_CHAINS } = require('../../helper-hardhat-config')
           .withArgs(ethers.parseEther('1'))
       })
 
-      // unit for refund
-      // window closed, target not reached, funder has balance
       it('window open, target not reached, funder has balance', async () => {
         await fundMe.fund({ value: ethers.parseEther('0.1') })
-        await expect(fundMe.refund()).to.be.revertedWith('Window is not closed')
+        await expect(fundMe.refund()).to.be.revertedWithCustomError(
+          fundMe,
+          'FundMe__WindowNotClosed',
+        )
       })
 
       it('window closed, target reached, funder has balance', async () => {
         await fundMe.fund({ value: ethers.parseEther('1') })
-        // make sure the window is closed
         await helpers.time.increase(200)
         await helpers.mine()
-        await expect(fundMe.refund()).to.be.revertedWith('Target is reached')
+        await expect(fundMe.refund()).to.be.revertedWithCustomError(
+          fundMe,
+          'FundMe__TargetReached',
+        )
       })
 
-      it('window closed, target not reached, funder dose not has balance', async () => {
+      it('window closed, target not reached, funder does not have balance', async () => {
         await fundMe.fund({ value: ethers.parseEther('0.1') })
-        // make sure the window is closed
         await helpers.time.increase(200)
         await helpers.mine()
-        await expect(fundMeSecondAccount.refund()).to.be.revertedWith(
-          'There is no fund for you',
+        await expect(fundMeSecondAccount.refund()).to.be.revertedWithCustomError(
+          fundMe,
+          'FundMe__NoFundForFunder',
         )
       })
 
       it('window closed, target not reached, funder has balance', async () => {
         await fundMe.fund({ value: ethers.parseEther('0.1') })
-        // make sure the window is closed
         await helpers.time.increase(200)
         await helpers.mine()
         await expect(fundMe.refund())

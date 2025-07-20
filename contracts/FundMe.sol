@@ -1,131 +1,144 @@
 // SPDX-License-Identifier: MIT
+// ========== Pragma ===============
 pragma solidity ^0.8.20;
 
+// ========== Imports ==============
 import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol';
 import './PriceConverter.sol';
 
+// ========== Error Codes ==========
+error FundMe__SendMoreETH();
+error FundMe__WindowClosed();
+error FundMe__WindowNotClosed();
+error FundMe__TargetNotReached();
+error FundMe__TargetReached();
+error FundMe__TransferFailed();
+error FundMe__NotOwner();
+error FundMe__NoFundForFunder();
+error FundMe__UnauthorizedCaller();
+
+// Interface, Libraries, Contracts
+
+/**
+ * @title A contract for crowd funding
+ * @author ruochen
+ * @notice This contract is to demo a sample funding contract
+ * @dev This implements price feeds as our library
+ */
 contract FundMe {
-  using PriceConverter for uint256;
+	// ========== Type Declarations ==========
+	using PriceConverter for uint256;
 
-  // 记录投资人
-  mapping(address => uint256) public funder2Amount;
+	// ========== State Variables ============
+	mapping(address => uint256) public funder2Amount;
 
-  uint256 constant MINIMUM_VALUE = 100 * 10 ** 18; // USD
+	uint256 constant MINIMUM_VALUE = 100 * 10 ** 18; // USD
+	uint256 constant TARGET = 1000 * 10 ** 18;
 
-  AggregatorV3Interface public dataFeed;
+	AggregatorV3Interface public dataFeed;
 
-  // 投资目标值
-  uint256 constant TARGET = 1000 * 10 ** 18;
+	address public owner;
+	uint256 deploymentTimestamp;
+	uint256 lockTime;
 
-  // 合约拥有者
-  address public owner;
+	address erc20Addr;
 
-  // 部署时间戳
-  uint256 deploymentTimestamp;
-  // 锁定时长
-  uint256 lockTime;
+	bool public getFundSuccess = false;
 
-  // erc20 地址
-  address erc20Addr;
+	// ========== Events ===============
+	event FundWithDrawByOwner(uint256);
+	event RefundByFunder(address, uint256);
 
-  bool public getFundSuccess = false;
+	// ========== Modifiers =============
+	modifier windowClosed() {
+		if (block.timestamp < deploymentTimestamp + lockTime)
+			revert FundMe__WindowNotClosed();
+		_;
+	}
 
-  event FundWithDrawByOwner(uint256);
-  event RefundByFunder(address, uint256);
+	modifier onlyOwner() {
+		if (msg.sender != owner) revert FundMe__NotOwner();
+		_;
+	}
 
-  constructor(uint256 _lockTime, address dataFeedAddr) {
-    // sepolia testnet
-    dataFeed = AggregatorV3Interface(dataFeedAddr);
-    owner = msg.sender;
-    deploymentTimestamp = block.timestamp;
-    lockTime = _lockTime;
-  }
+	// ========== Functions ==========
+	// order of functions
+	// constructor
+	// receive function (if exists)
+	// fallback function (if exists)
+	// external
+	// public
+	// internal
+	// private
 
-  // 收款函数
-  function fund() external payable {
-    // 设置最小交易量
-    require(msg.value.getConversionRate(dataFeed) >= MINIMUM_VALUE,  'Send more ETH');
-    // 窗口期限制
-    require(
-      block.timestamp < deploymentTimestamp + lockTime,
-      'Window is closed'
-    );
-    funder2Amount[msg.sender] = msg.value;
-  }
+	// ========== Constructor ==========
+	constructor(uint256 _lockTime, address dataFeedAddr) {
+		dataFeed = AggregatorV3Interface(dataFeedAddr);
+		owner = msg.sender;
+		deploymentTimestamp = block.timestamp;
+		lockTime = _lockTime;
+	}
 
-  /**
-   * 提取投资金额
-   */
-  function getFund() external windowClosed onlyOwner {
-    require(
-      address(this).balance.getConversionRate(dataFeed) >= TARGET,
-      'Target is not reached'
-    );
-    // transfer: transfer ETH and revert if tx failed
-    // payable(msg.sender).transfer(address(this).balance);
+	receive() external payable {
+		fund();
+	}
 
-    // send: transfer ETH and return false if failed
-    // bool success = payable(msg.sender).send(address(this).balance);
-    // require(success, "tx failed");
+	fallback() external payable {
+		fund();
+	}
 
-    // call: transfer ETH with data return value of function and bool
-    bool success;
-    uint256 balance = address(this).balance;
-    (success, ) = payable(msg.sender).call{value: balance}('');
-    require(success, 'transfer tx failed');
-    funder2Amount[msg.sender] = 0;
-    getFundSuccess = true; // flag
-    // emit event
-    emit FundWithDrawByOwner(balance);
-  }
+	function getFund() external windowClosed onlyOwner {
+		if (address(this).balance.getConversionRate(dataFeed) < TARGET)
+			revert FundMe__TargetNotReached();
 
-  /**
-   * 修改投资拥有者
-   */
-  function transferOwnership(address newOwner) public onlyOwner {
-    owner = newOwner;
-  }
+		bool success;
+		uint256 balance = address(this).balance;
+		(success, ) = payable(msg.sender).call{value: balance}('');
+		if (!success) revert FundMe__TransferFailed();
 
-  /**
-   * 退回投资金额
-   */
-  function refund() external windowClosed {
-    require(
-      address(this).balance.getConversionRate(dataFeed) < TARGET,
-      'Target is reached'
-    );
-    require(funder2Amount[msg.sender] != 0, 'There is no fund for you');
-    bool success;
-    uint256 balance = funder2Amount[msg.sender];
-    (success, ) = payable(msg.sender).call{value: balance}('');
-    require(success, 'transfer tx failed');
-    funder2Amount[msg.sender] = 0;
-    emit RefundByFunder(msg.sender, balance);
-  }
+		funder2Amount[msg.sender] = 0;
+		getFundSuccess = true;
 
-  function setErc20Addr(address _erc20Addr) public onlyOwner {
-    erc20Addr = _erc20Addr;
-  }
+		emit FundWithDrawByOwner(balance);
+	}
 
-  function setFunder2Amount(address funder, uint256 amount2Update) external {
-    require(
-      msg.sender == erc20Addr,
-      'You do not have permission to call this function'
-    );
-    funder2Amount[funder] = amount2Update;
-  }
+	function refund() external windowClosed {
+		if (address(this).balance.getConversionRate(dataFeed) >= TARGET)
+			revert FundMe__TargetReached();
+		if (funder2Amount[msg.sender] == 0) revert FundMe__NoFundForFunder();
 
-  modifier windowClosed() {
-    require(
-      block.timestamp >= deploymentTimestamp + lockTime,
-      'Window is not closed'
-    );
-    // 先执行上面语句，再执行函数后续操作
-    _;
-  }
+		bool success;
+		uint256 balance = funder2Amount[msg.sender];
+		(success, ) = payable(msg.sender).call{value: balance}('');
+		if (!success) revert FundMe__TransferFailed();
 
-  modifier onlyOwner() {
-    require(msg.sender == owner, 'This function can only be called by owner');
-    _;
-  }
+		funder2Amount[msg.sender] = 0;
+		emit RefundByFunder(msg.sender, balance);
+	}
+
+	function setFunder2Amount(address funder, uint256 amount2Update) external {
+    // only allow FundTokenERC20 contract to call this function
+		if (msg.sender != erc20Addr) revert FundMe__UnauthorizedCaller();
+		funder2Amount[funder] = amount2Update;
+	}
+
+	function transferOwnership(address newOwner) public onlyOwner {
+		owner = newOwner;
+	}
+
+	/**
+	 * @notice This function funds this contract
+	 */
+	function fund() public payable {
+		if (msg.value.getConversionRate(dataFeed) < MINIMUM_VALUE)
+			revert FundMe__SendMoreETH();
+		if (block.timestamp >= deploymentTimestamp + lockTime)
+			revert FundMe__WindowClosed();
+
+		funder2Amount[msg.sender] = msg.value;
+	}
+
+	function setErc20Addr(address _erc20Addr) public onlyOwner {
+		erc20Addr = _erc20Addr;
+	}
 }
