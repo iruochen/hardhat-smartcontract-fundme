@@ -3,27 +3,19 @@ pragma solidity ^0.8.20;
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-error FundTokenERC20__InsufficientMintAllowance(
-	uint256 requested,
-	uint256 available
-);
-error FundTokenERC20__InsufficientTokenBalance(
-	uint256 requested,
-	uint256 available
-);
 error FundTokenERC20__FundMeNotCompleted();
 
 interface IFundMe {
-	function funder2Amount(address funder) external view returns (uint256);
-	function getFundSuccess() external view returns (bool);
-	function setFunder2Amount(address funder, uint256 amount2Update) external;
+	function addressToFunded(address funder) external view returns (uint256);
+	function withdrawSuccess() external view returns (bool);
+	function setAddressToFunded(address funder, uint256 amount2Update) external;
 }
 
 contract FundTokenERC20 is ERC20 {
 	IFundMe public fundMe;
 
 	modifier fundMeSuccess() {
-		if (!fundMe.getFundSuccess()) {
+		if (!fundMe.withdrawSuccess()) {
 			revert FundTokenERC20__FundMeNotCompleted();
 		}
 		_;
@@ -34,20 +26,18 @@ contract FundTokenERC20 is ERC20 {
 	}
 
 	function mint(uint256 amount2Mint) external fundMeSuccess {
-		uint256 available = fundMe.funder2Amount(msg.sender);
-		if (available < amount2Mint) {
-			revert FundTokenERC20__InsufficientMintAllowance(amount2Mint, available);
-		}
+		uint256 available = fundMe.addressToFunded(msg.sender);
+		require(available >= amount2Mint, 'You can not mint this many tokens');
 
 		_mint(msg.sender, amount2Mint);
-		fundMe.setFunder2Amount(msg.sender, available - amount2Mint);
+		fundMe.setAddressToFunded(msg.sender, available - amount2Mint);
 	}
 
 	function claim(uint256 amount2Claim) external fundMeSuccess {
-		uint256 balance = balanceOf(msg.sender);
-		if (balance < amount2Claim) {
-			revert FundTokenERC20__InsufficientTokenBalance(amount2Claim, balance);
-		}
+		require(
+			balanceOf(msg.sender) >= amount2Claim,
+			'You do not have enough ERC20 tokens'
+		);
 		_burn(msg.sender, amount2Claim);
 	}
 }

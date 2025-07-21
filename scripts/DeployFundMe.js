@@ -48,11 +48,11 @@ async function main() {
   );
   console.log(`Balance of the contract is ${balanceOfContractAfterSecond}`);
 
-  // check mapping funder2Amount
-  const firstAccountBalanceInFundMe = await fundMe.funder2Amount(
+  // check mapping addressToFunded 
+  const firstAccountBalanceInFundMe = await fundMe.addressToFunded(
     firstAccount.address
   );
-  const secondAccountBalanceInFundMe = await fundMe.funder2Amount(
+  const secondAccountBalanceInFundMe = await fundMe.addressToFunded(
     secondAccount.address
   );
   console.log(

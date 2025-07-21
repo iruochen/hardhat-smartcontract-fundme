@@ -7,14 +7,9 @@ import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/shared/interf
 import './PriceConverter.sol';
 
 // ========== Error Codes ==========
-error FundMe__SendMoreETH();
-error FundMe__WindowClosed();
 error FundMe__WindowNotClosed();
-error FundMe__TargetNotReached();
-error FundMe__TargetReached();
 error FundMe__TransferFailed();
 error FundMe__NotOwner();
-error FundMe__NoFundForFunder();
 error FundMe__UnauthorizedCaller();
 
 // Interface, Libraries, Contracts
@@ -30,20 +25,15 @@ contract FundMe {
 	using PriceConverter for uint256;
 
 	// ========== State Variables ============
-	mapping(address => uint256) public funder2Amount;
-
+	mapping(address => uint256) public addressToFunded;
 	uint256 constant MINIMUM_VALUE = 100 * 10 ** 18; // USD
 	uint256 constant TARGET = 1000 * 10 ** 18;
-
 	AggregatorV3Interface public dataFeed;
-
 	address public owner;
 	uint256 deploymentTimestamp;
 	uint256 lockTime;
-
 	address erc20Addr;
-
-	bool public getFundSuccess = false;
+	bool public withdrawSuccess = false;
 
 	// ========== Events ===============
 	event FundWithDrawByOwner(uint256);
@@ -72,6 +62,11 @@ contract FundMe {
 	// private
 
 	// ========== Constructor ==========
+	/**
+	 * constructor
+	 * @param _lockTime fund contract lock time, unit is s
+	 * @param dataFeedAddr chainlink data feed addr
+	 */
 	constructor(uint256 _lockTime, address dataFeedAddr) {
 		dataFeed = AggregatorV3Interface(dataFeedAddr);
 		owner = msg.sender;
@@ -87,39 +82,43 @@ contract FundMe {
 		fund();
 	}
 
-	function getFund() external windowClosed onlyOwner {
-		if (address(this).balance.getConversionRate(dataFeed) < TARGET)
-			revert FundMe__TargetNotReached();
+	function withdraw() external windowClosed onlyOwner {
+		require(
+			address(this).balance.getConversionRate(dataFeed) >= TARGET,
+			'Target is not reached'
+		);
 
 		bool success;
 		uint256 balance = address(this).balance;
-		(success, ) = payable(msg.sender).call{value: balance}('');
+		(success, ) = payable(owner).call{value: balance}('');
 		if (!success) revert FundMe__TransferFailed();
 
-		funder2Amount[msg.sender] = 0;
-		getFundSuccess = true;
+		addressToFunded[msg.sender] = 0;
+		withdrawSuccess = true;
 
 		emit FundWithDrawByOwner(balance);
 	}
 
 	function refund() external windowClosed {
-		if (address(this).balance.getConversionRate(dataFeed) >= TARGET)
-			revert FundMe__TargetReached();
-		if (funder2Amount[msg.sender] == 0) revert FundMe__NoFundForFunder();
+		require(
+			address(this).balance.getConversionRate(dataFeed) < TARGET,
+			'Target is reached'
+		);
+		require(addressToFunded[msg.sender] != 0, 'There is no fund for you');
 
 		bool success;
-		uint256 balance = funder2Amount[msg.sender];
+		uint256 balance = addressToFunded[msg.sender];
 		(success, ) = payable(msg.sender).call{value: balance}('');
 		if (!success) revert FundMe__TransferFailed();
 
-		funder2Amount[msg.sender] = 0;
+		addressToFunded[msg.sender] = 0;
 		emit RefundByFunder(msg.sender, balance);
 	}
 
-	function setFunder2Amount(address funder, uint256 amount2Update) external {
-    // only allow FundTokenERC20 contract to call this function
+	function setAddressToFunded(address funder, uint256 amount2Update) external {
+		// only allow FundTokenERC20 contract to call this function
 		if (msg.sender != erc20Addr) revert FundMe__UnauthorizedCaller();
-		funder2Amount[funder] = amount2Update;
+		addressToFunded[funder] = amount2Update;
 	}
 
 	function transferOwnership(address newOwner) public onlyOwner {
@@ -127,15 +126,20 @@ contract FundMe {
 	}
 
 	/**
-	 * @notice This function funds this contract
+	 * @notice This function funds this contract, based on the ETH/USD price
 	 */
 	function fund() public payable {
-		if (msg.value.getConversionRate(dataFeed) < MINIMUM_VALUE)
-			revert FundMe__SendMoreETH();
-		if (block.timestamp >= deploymentTimestamp + lockTime)
-			revert FundMe__WindowClosed();
-
-		funder2Amount[msg.sender] = msg.value;
+		// set minimum usd
+		require(
+			msg.value.getConversionRate(dataFeed) >= MINIMUM_VALUE,
+			'Send more ETH'
+		);
+		// window limit
+		require(
+			block.timestamp < deploymentTimestamp + lockTime,
+			'Window is closed'
+		);
+		addressToFunded[msg.sender] += msg.value;
 	}
 
 	function setErc20Addr(address _erc20Addr) public onlyOwner {
