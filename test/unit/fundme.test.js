@@ -43,11 +43,11 @@ const { DEVELOPMENT_CHAINS } = require('../../helper-hardhat-config')
 
 			describe('constructor', async () => {
 				it('test if the owner is msg.sender', async () => {
-					assert.equal(await fundMe.owner(), firstAccount)
+					assert.equal(await fundMe.getOwner(), firstAccount)
 				})
 
 				it('test if the dataFeed is assigned currently', async () => {
-					assert.equal(await fundMe.dataFeed(), mockV3Aggregator.address)
+					assert.equal(await fundMe.getDataFeed(), mockV3Aggregator.address)
 				})
 			})
 
@@ -68,7 +68,7 @@ const { DEVELOPMENT_CHAINS } = require('../../helper-hardhat-config')
 
 				it('window open, value is greater than minimum, fund success', async () => {
 					await fundMe.fund({ value: POINT_ONE_ETH })
-					const balance = await fundMe.addressToFunded(firstAccount)
+					const balance = await fundMe.getAddressToFunded(firstAccount)
 					expect(balance).to.equal(POINT_ONE_ETH)
 				})
 			})
@@ -102,13 +102,35 @@ const { DEVELOPMENT_CHAINS } = require('../../helper-hardhat-config')
 
 				it('window closed, target reached, withdraw success', async () => {
 					await fundMe.fund({ value: ONE_ETH })
+					const startingFundMeBalance = await ethers.provider.getBalance(
+						fundMe.target,
+					)
+					const startingDeployerBalance =
+						await ethers.provider.getBalance(firstAccount)
+
 					await helpers.time.increase(TIME_INCREMENT)
 					await helpers.mine()
-					await expect(fundMe.withdraw())
+					const txResponse = await fundMe.withdraw()
+					const txReceipt = await txResponse.wait()
+
+					const { gasUsed, gasPrice } = txReceipt
+					const gasCost = gasUsed * gasPrice
+
+					const endingFundMeBalance = await ethers.provider.getBalance(
+						fundMe.target,
+					)
+					const endingDeployerBalance =
+						await ethers.provider.getBalance(firstAccount)
+
+					expect(txResponse)
 						.to.emit(fundMe, 'FundWithDrawByOwner')
 						.withArgs(ONE_ETH)
-					expect(await ethers.provider.getBalance(fundMe)).to.equal(0)
-					expect(await fundMe.withdrawSuccess()).to.be.true
+					expect(await fundMe.getWithdrawSuccess()).to.be.true
+					assert.equal(endingFundMeBalance, 0)
+					assert.equal(
+						startingFundMeBalance + startingDeployerBalance,
+						endingDeployerBalance + gasCost,
+					)
 				})
 			})
 

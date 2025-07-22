@@ -6,8 +6,8 @@ import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 error FundTokenERC20__FundMeNotCompleted();
 
 interface IFundMe {
-	function addressToFunded(address funder) external view returns (uint256);
-	function withdrawSuccess() external view returns (bool);
+	function getAddressToFunded(address funder) external view returns (uint256);
+	function getWithdrawSuccess() external view returns (bool);
 	function setAddressToFunded(address funder, uint256 amount2Update) external;
 }
 
@@ -15,7 +15,7 @@ contract FundTokenERC20 is ERC20 {
 	IFundMe public fundMe;
 
 	modifier fundMeSuccess() {
-		if (!fundMe.withdrawSuccess()) {
+		if (!fundMe.getWithdrawSuccess()) {
 			revert FundTokenERC20__FundMeNotCompleted();
 		}
 		_;
@@ -26,7 +26,7 @@ contract FundTokenERC20 is ERC20 {
 	}
 
 	function mint(uint256 amount2Mint) external fundMeSuccess {
-		uint256 available = fundMe.addressToFunded(msg.sender);
+		uint256 available = fundMe.getAddressToFunded(msg.sender);
 		require(available >= amount2Mint, 'You can not mint this many tokens');
 
 		_mint(msg.sender, amount2Mint);
