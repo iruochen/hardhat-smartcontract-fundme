@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 
 // ========== Imports ==============
 import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol';
+// import 'hardhat/console.sol';
 import './PriceConverter.sol';
 
 // ========== Error Codes ==========
@@ -75,10 +76,13 @@ contract FundMe {
 	}
 
 	receive() external payable {
+		// console.log("Receive triggered!");
 		fund();
 	}
 
 	fallback() external payable {
+		// console.log("Fallback triggered!");
+		// console.logBytes4(msg.sig);
 		fund();
 	}
 
