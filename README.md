@@ -1,4 +1,4 @@
-# hardhat-smartcomtract-fundme
+# hardhat-smartcontract-fundme
 ## create hardhat project
 ```shell
 npm init
